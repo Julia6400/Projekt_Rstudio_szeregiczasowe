@@ -30,9 +30,19 @@ knitr::opts_chunk$set(
 
 \justifying
 
+# Wprowadzenie
+
+Prognozy finansowe stanowią fundamentalny element strategicznego zarządzania przedsiębiorstwem, umożliwiając podejmowanie świadomych decyzji biznesowych oraz optymalizację procesów operacyjnych. W kontekście dynamicznie zmieniającego się środowiska gospodarczego, szczególnie istotne staje się wykorzystanie zaawansowanych metod analitycznych do przewidywania przyszłych wyników finansowych.
+
+Walmart Inc., jako największa sieć handlowa na świecie, charakteryzuje się złożonymi wzorcami sprzedażowymi wynikającymi z sezonowości konsumpcji, trendów makroekonomicznych oraz specyfiki branży detalicznej. Analiza szeregów czasowych przychodów tej korporacji dostarcza cennych informacji o mechanizmach kształtujących wyniki finansowe w sektorze handlu detalicznego.
+
+Niniejszy raport prezentuje kompleksową analizę porównawczą trzech metod prognozowania: modelu ARIMA, modelu Holt-Winters oraz regresji liniowej wielowymiarowej. Wykorzystanie różnorodnych podejść metodologicznych pozwala na ocenę względnej skuteczności poszczególnych technik oraz identyfikację optymalnego narzędzia prognostycznego dla analizowanego przypadku.
+
+Badanie oparte jest na danych kwartalnych z okresu 2009-2025, obejmujących kluczowe wskaźniki finansowe Walmart: przychody, zysk brutto oraz liczbę akcji w obrocie. Analiza uwzględnia zarówno aspekty statystyczne, jak i praktyczne implikacje wyników dla zarządzania przedsiębiorstwem.
+
 # 1. Opis problemu
 
-Głównym problemem badawczym jest **prognozowanie kwartalnych przychodów sieci handlowej Walmart** w oparciu o dane historyczne z okresu 2009-2025. Analiza ma na celu wsparcie kluczowych obszarów działalności przedsiębiorstwa.
+Głównym problemem badawczym jest prognozowanie kwartalnych przychodów sieci handlowej Walmart w oparciu o dane historyczne z okresu 2009-2025. Analiza ma na celu wsparcie kluczowych obszarów działalności przedsiębiorstwa.
 
 **Planowanie strategiczne** stanowi pierwszy obszar zastosowania, obejmujący wsparcie decyzji dotyczących budżetowania i alokacji zasobów finansowych. Dokładne prognozy przychodów umożliwiają menedżerom podejmowanie świadomych decyzji inwestycyjnych oraz planowanie rozwoju sieci handlowej.
 
@@ -96,10 +106,14 @@ Implementacja trzech komplementarnych podejść prognostycznych zapewnia komplek
 
 ## Rezultaty implementacji
 
-Kod generuje **prognozy na 8 kolejnych kwartałów** (2 lata) wraz z kompleksową oceną wiarygodności każdego modelu. System diagnostyczny umożliwia identyfikację najdokładniejszego modelu dla konkretnego zastosowania.
+Kod generuje prognozy na 8 kolejnych kwartałów (2 lata) wraz z kompleksową oceną wiarygodności każdego modelu. System diagnostyczny umożliwia identyfikację najdokładniejszego modelu dla konkretnego zastosowania.
 
 **Ocena stabilności prognoz** poprzez analizę przedziałów ufności dostarcza informacji o niepewności predykcji oraz prawdopodobieństwie realizacji różnych scenariuszy rozwoju.
 
 **Wykrywanie problemów modelowania** obejmuje identyfikację potencjalnych problemów takich jak heteroskedastyczność czy autokorelacja reszt, które mogą wpływać na jakość prognoz.
 
 Rozwiązanie zapewnia menedżerom Walmart narzędzie do podejmowania decyzji biznesowych w oparciu o solidne podstawy statystyczne i porównanie alternatywnych scenariuszy prognostycznych. Kompleksowa analiza umożliwia wybór optymalnej strategii prognostycznej dostosowanej do specyficznych potrzeb organizacji.
+
+# 3. Kod zawierający obliczenia
+
+# 4. Wyniki obliczeń
