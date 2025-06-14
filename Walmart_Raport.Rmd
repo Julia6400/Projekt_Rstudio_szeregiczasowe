@@ -1,0 +1,105 @@
+---
+title: "Prognozowanie przychodów Walmart - analiza szeregów czasowych"
+author: "Patryk Durand, Julia Grzegorowska, Maria Kaczor, Cezary Mikuś, Aleksander Włodarczyk"
+date: "`r Sys.Date()`"
+output: 
+  pdf_document:
+    latex_engine: xelatex
+header-includes:
+  - \usepackage{fontspec}
+  - \setmainfont{Times New Roman}
+  - \usepackage{setspace}
+  - \onehalfspacing
+  - \usepackage{geometry}
+  - \geometry{margin=2.5cm}
+  - \setlength{\parskip}{6pt}
+  - \usepackage{ragged2e}
+  - \justifying
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(
+  echo = TRUE,
+  warning = FALSE,
+  message = FALSE,
+  fig.align = 'center',
+  fig.width = 8,
+  fig.height = 6
+)
+```
+
+\justifying
+
+# 1. Opis problemu
+
+Głównym problemem badawczym jest **prognozowanie kwartalnych przychodów sieci handlowej Walmart** w oparciu o dane historyczne z okresu 2009-2025. Analiza ma na celu wsparcie kluczowych obszarów działalności przedsiębiorstwa.
+
+**Planowanie strategiczne** stanowi pierwszy obszar zastosowania, obejmujący wsparcie decyzji dotyczących budżetowania i alokacji zasobów finansowych. Dokładne prognozy przychodów umożliwiają menedżerom podejmowanie świadomych decyzji inwestycyjnych oraz planowanie rozwoju sieci handlowej.
+
+**Optymalizacja operacyjna** reprezentuje drugi kluczowy obszar, koncentrujący się na lepszym zarządzaniu zapasami poprzez przewidywanie przyszłych wyników sprzedażowych. Właściwe prognozowanie pozwala na minimalizację kosztów magazynowania przy jednoczesnym zapewnieniu dostępności produktów.
+
+**Identyfikacja wzorców biznesowych** obejmuje wykrycie trendów długoterminowych i sezonowości w przychodach, co umożliwia lepsze zrozumienie cykli gospodarczych wpływających na wyniki finansowe firmy.
+
+**Ocena skuteczności metod prognostycznych** stanowi ostatni cel, polegający na porównaniu dokładności różnych modeli ekonometrycznych w celu wyboru najlepszego narzędzia predykcyjnego.
+
+Dane wykorzystane w analizie obejmują kluczowe wskaźniki finansowe Walmart. **Przychody kwartalne** wyrażone w milionach USD stanowią główną zmienną prognozowaną. **Zysk brutto kwartalny** dostarcza informacji o rentowności operacyjnej firmy. **Liczba akcji w obrocie** umożliwia obliczenie wskaźników per capita. Okres analizy obejmuje 66 obserwacji kwartalnych od Q1 2009 do Q2 2025.
+
+# 2. Opis sposobu rozwiązania
+
+## Metodologia badawcza
+
+### Etap I: Przygotowanie i eksploracja danych
+
+**Integracja źródeł danych** stanowi pierwszy krok procesu analitycznego. Trzy zestawy danych w formacie CSV pobierane są z repozytoriów GitHub, zawierając odpowiednio informacje o przychodach, zysku brutto oraz liczbie akcji w obrocie.
+
+**Harmonizacja formatów** obejmuje standaryzację formatów dat oraz wartości liczbowych poprzez usunięcie separatorów tysięcy i konwersję do odpowiednich typów danych. Proces ten zapewnia spójność danych niezbędną dla dalszych analiz.
+
+**Tworzenie zmiennych pochodnych** polega na generowaniu dodatkowych wskaźników analitycznych, w tym marży brutto obliczanej jako stosunek zysku brutto do przychodu, przychodu na akcję oraz identyfikatorów kwartałów w formacie "rok + kwartał".
+
+**Konwersja do szeregów czasowych** następuje poprzez transformację danych do formatu szeregów czasowych z częstotliwością kwartalną, co umożliwia zastosowanie specjalistycznych metod analizy czasowej.
+
+### Etap II: Analiza statystyczna i diagnostyczna
+
+**Dekompozycja szeregu czasowego** metodą STL (Seasonal and Trend decomposition using Loess) pozwala na wyodrębnienie składników fundamentalnych: trendu długoterminowego, wzorców sezonowych oraz składnika losowego. Analiza ta dostarcza wglądu w strukturę danych czasowych.
+
+**Test stacjonarności** Augmented Dickey-Fuller (ADF) służy ocenie właściwości statystycznych szeregu czasowego, szczególnie w kontekście obecności pierwiastka jednostkowego. Wyniki testu determinują wybór odpowiednich metod modelowania.
+
+**Analiza korelacji** między kluczowymi wskaźnikami finansowymi ujawnia związki między zmiennymi, co informuje o potencjalnych relacjach przyczynowo-skutkowych wykorzystywanych w modelowaniu regresyjnym.
+
+**Wizualizacja trendów** poprzez wykresy liniowe oraz dekompozycję umożliwia identyfikację wzorców sezonowych i długoterminowych tendencji rozwojowych.
+
+### Etap III: Modelowanie predykcyjne
+
+Implementacja trzech komplementarnych podejść prognostycznych zapewnia kompleksową analizę możliwości predykcyjnych.
+
+**Model ARIMA** (AutoRegressive Integrated Moving Average) wykorzystuje automatyczne dopasowanie parametrów (p,d,q) metodą `auto.arima()`. Podejście to modeluje zależności autoregresyjne oraz składniki błędów, uwzględniając zarówno trendy jak i wzorce sezonowe w danych.
+
+**Model Holt-Winters (ETS)** implementuje wygładzanie wykładnicze z uwzględnieniem trendu i sezonowości. Automatyczne dobieranie typu modelu (addytywny lub multiplikatywny) zapewnia optymalne dopasowanie do charakterystyki danych.
+
+**Regresja liniowa wielowymiarowa** wykorzystuje zmienne objaśniające w postaci marży brutto oraz przychodu na akcję. Podejście to modeluje relacje przyczynowo-skutkowe między wskaźnikami finansowymi, oferując interpretację ekonomiczną wyników.
+
+### Etap IV: Walidacja i diagnostyka modeli
+
+**Analiza reszt** dla każdego modelu obejmuje kompleksową ocenę jakości dopasowania. Wykresy diagnostyczne prezentują szeregi czasowe reszt, funkcje autokorelacji (ACF), histogramy rozkładów oraz wykresy Q-Q dla oceny normalności.
+
+**Testy statystyczne** obejmują test normalności Shapiro-Wilka oraz test braku autokorelacji Ljung-Box. Wyniki tych testów informują o spełnieniu założeń modelowych oraz potencjalnych problemach specyfikacji.
+
+**Automatyczne procedury diagnostyczne** dla modeli ARIMA i ETS wykorzystują wbudowane funkcje sprawdzające, które generują kompleksowe raporty dotyczące jakości modeli.
+
+### Etap V: Ocena porównawcza i selekcja modelu
+
+**Obliczenie metryk dokładności** obejmuje dwa kluczowe wskaźniki: RMSE (Root Mean Square Error) jako miarę średniego błędu kwadratowego oraz MAPE (Mean Absolute Percentage Error) jako względny błąd procentowy. Metryki te umożliwiają obiektywne porównanie modeli.
+
+**Porównanie wyników** prezentowane jest na wykresach słupkowych, które wizualizują względną skuteczność poszczególnych metod prognostycznych. Analiza ta wspiera proces selekcji optymalnego modelu.
+
+**Wizualizacja prognoz** z przedziałami ufności dostarcza informacji o niepewności predykcji oraz prawdopodobnych zakresach przyszłych wartości.
+
+## Rezultaty implementacji
+
+Kod generuje **prognozy na 8 kolejnych kwartałów** (2 lata) wraz z kompleksową oceną wiarygodności każdego modelu. System diagnostyczny umożliwia identyfikację najdokładniejszego modelu dla konkretnego zastosowania.
+
+**Ocena stabilności prognoz** poprzez analizę przedziałów ufności dostarcza informacji o niepewności predykcji oraz prawdopodobieństwie realizacji różnych scenariuszy rozwoju.
+
+**Wykrywanie problemów modelowania** obejmuje identyfikację potencjalnych problemów takich jak heteroskedastyczność czy autokorelacja reszt, które mogą wpływać na jakość prognoz.
+
+Rozwiązanie zapewnia menedżerom Walmart narzędzie do podejmowania decyzji biznesowych w oparciu o solidne podstawy statystyczne i porównanie alternatywnych scenariuszy prognostycznych. Kompleksowa analiza umożliwia wybór optymalnej strategii prognostycznej dostosowanej do specyficznych potrzeb organizacji.
