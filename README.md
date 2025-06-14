@@ -16,7 +16,7 @@ Projekt poświęcony jest analizie i prognozowaniu kwartalnych przychodów sieci
 ### Źródła danych
 
 -   `Walmart_Quarterly_Revenue.csv` - przychody kwartalne (mln USD)
--   `Walmart_Quarterly_Gross_Profit.csv` - zysk brutto kwartalny (mln USD)\
+-   `Walmart_Quarterly_Gross_Profit.csv` - zysk brutto kwartalny (mln USD)
 -   `Walmart_Quarterly_Shares_Outstanding.csv` - liczba akcji w obrocie
 
 ### Okres analizy
