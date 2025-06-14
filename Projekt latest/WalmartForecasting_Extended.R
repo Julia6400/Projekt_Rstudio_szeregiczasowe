@@ -11,6 +11,7 @@ library(reshape2)
 library(kableExtra)
 library(purrr)
 library(tidyr)
+library(tinytex)
 
 ## ----------------------------------------------------------
 ## WCZYTANIE I PRZYGOTOWANIE DANYCH
