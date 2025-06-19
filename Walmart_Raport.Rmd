@@ -134,10 +134,17 @@ library(purrr)
 library(tidyr)
 
 # Definicje URL do danych
-url_revenue <- "https://raw.githubusercontent.com/Julia6400/Projekt_Rstudio_szeregiczasowe/main/dane/Walmart_Quarterly_Revenue.csv"
-url_profit <- "https://raw.githubusercontent.com/Julia6400/Projekt_Rstudio_szeregiczasowe/main/dane/Walmart_Quarterly_Gross_Profit.csv"
-url_shares <- "https://raw.githubusercontent.com/Julia6400/Projekt_Rstudio_szeregiczasowe/main/dane/Walmart_Quarterly_Shares_Outstanding.csv"
-
+url_revenue <- paste0( "https://raw.githubusercontent.com/Julia6400/",
+"Projekt_Rstudio_szeregiczasowe/main/dane/Walmart_Quarterly_Revenue.csv"
+)
+url_profit <- paste0(
+"https://raw.githubusercontent.com/Julia6400/Projekt_Rstudio_szeregiczasowe/",
+"main/dane/Walmart_Quarterly_Gross_Profit.csv"
+)
+url_shares <- paste0(
+"https://raw.githubusercontent.com/Julia6400/Projekt_Rstudio_szeregiczasowe/",
+"main/dane/Walmart_Quarterly_Shares_Outstanding.csv"
+)
 # Wczytanie danych CSV
 df_revenue <- read.csv(url_revenue, stringsAsFactors = FALSE)
 df_profit <- read.csv(url_profit, stringsAsFactors = FALSE)
@@ -188,6 +195,8 @@ W efekcie otrzymano uporządkowaną ramkę danych zawierającą zmienne: identyf
 
 Na tym etapie utworzono kwartalny szereg czasowy przychodów Walmart z częstotliwością 4 (cztery obserwacje rocznie), obejmujący okres od pierwszego kwartału 2009 roku do drugiego kwartału 2025 roku. Następnie zastosowano dekompozycję STL w celu rozdzielenia obserwowanego sygnału na trzy główne komponenty: trend, sezonowość oraz składnik losowy.
 
+<div align="center">
+
 ```{r}
 # Utworzenie szeregu czasowego przychodów Walmart
 revenue_ts <- ts(full_df[[revenue_col]], start = c(2009, 1), frequency = 4)
@@ -198,6 +207,8 @@ decomposed <- stl(revenue_ts, s.window = "periodic")
 # Wizualizacja dekompozycji
 autoplot(decomposed) + ggtitle("Dekompozycja STL szeregu czasowego przychodów Walmart")
 ```
+
+</div>
 
 Dekompozycja wykazała wyraźną sezonowość w przychodach, powtarzającą się co cztery kwartały, oraz ogólny trend wzrostowy z niewielkimi wahaniami cyklicznymi. Informacje te są kluczowe przy wyborze odpowiednich metod modelowania prognostycznego.
 
@@ -224,8 +235,9 @@ Następnie obliczono macierz korelacji pomiędzy trzema głównymi wskaźnikami 
 cor_matrix <- cor(full_df[, c(revenue_col, "MarzaBrutto", "PrzychodNaAkcje")])
 
 # Tabela korelacji
-kable(cor_matrix, digits = 2, caption = "Macierz korelacji między zmiennymi finansowymi") %>%
-  kable_styling(full_width = FALSE)
+kable(cor_matrix, digits = 2, 
+      caption = "Macierz korelacji między zmiennymi finansowymi") %>%
+    kable_styling(full_width = FALSE)
 ```
 
 Z uzyskanej macierzy korelacji można wywnioskować, że: - przychód jest umiarkowanie skorelowany z przychodem na akcję, - zależność pomiędzy przychodem a marżą brutto jest słabsza.
@@ -282,13 +294,23 @@ Wartości p-value powyżej poziomu istotności 0.05 wskazują na brak podstaw do
 
 Wbudowane funkcje `checkresiduals()` umożliwiają kompleksową analizę pozostałości modelu – uwzględniają histogram, wykres autokorelacji oraz Q-Q plot.
 
+<div align="center">
+
 ```{r}
 # Diagnostyka reszt ARIMA
 checkresiduals(model_arima)
+```
 
+</div>
+
+<div align="center">
+
+```{r}
 # Diagnostyka reszt ETS
 checkresiduals(model_hw)
 ```
+
+</div>
 
 Analiza graficzna reszt potwierdza, że oba modele szeregów czasowych spełniają podstawowe założenia statystyczne. Brak istotnych odchyleń od normalności i autokorelacji wskazuje na dobre dopasowanie modeli do danych historycznych.
 
@@ -304,7 +326,9 @@ Dla modeli ARIMA i ETS wykorzystano funkcję `accuracy()`, natomiast dla regresj
 ```{r}
 # Funkcje pomocnicze
 rmse <- function(actual, predicted) sqrt(mean((actual - predicted)^2, na.rm = TRUE))
-mape <- function(actual, predicted) mean(abs((actual - predicted) / actual), na.rm = TRUE) * 100
+mape <- function(actual, predicted)
+  mean(abs((actual - predicted) / actual), na.rm = TRUE) * 100
+
 
 # Metryki dla regresji
 rmse_lm <- rmse(full_df[[revenue_col]], full_df$Forecast_LM)
@@ -353,8 +377,10 @@ Celem tego podrozdziału było zbadanie zależności pomiędzy zmiennymi finanso
 
 ```{r}
 # Macierz korelacji
-kable(cor_matrix, digits = 2, caption = "Macierz korelacji między zmiennymi finansowymi") %>%
+kable(cor_matrix, digits = 2,
+       caption = "Macierz korelacji między zmiennymi finansowymi") %>%
   kable_styling(full_width = FALSE)
+
 ```
 
 Macierz korelacji wskazuje na umiarkowaną zależność pomiędzy przychodem a przychodem na akcję, co sugeruje, że zmienna ta może pełnić istotną rolę w modelach predykcyjnych. Marża brutto wykazuje słabszą, lecz nadal zauważalną korelację z przychodem, co może również uzasadniać jej wykorzystanie w modelu regresji.
@@ -383,7 +409,8 @@ Obie wartości p są powyżej konwencjonalnego poziomu istotności 0.05, co pozw
 W tabeli poniżej zestawiono wartości RMSE i MAPE dla wszystkich trzech modeli:
 
 ```{r}
-kable(porownanie, caption = "Porównanie dokładności modeli prognozujących (RMSE i MAPE)") %>%
+kable(porownanie,
+      caption = "Porównanie dokładności modeli prognozujących (RMSE i MAPE)") %>%
   kable_styling(full_width = FALSE)
 ```
 
@@ -399,6 +426,8 @@ porownanie_long <- pivot_longer(porownanie, cols = c("RMSE", "MAPE"),
                                  names_to = "Metryka", values_to = "Wartosc")
 ```
 
+<div align="center">
+
 ```{r}
 # Wykres porównawczy
 ggplot(porownanie_long, aes(x = Model, y = Wartosc, fill = Model)) +
@@ -409,6 +438,8 @@ ggplot(porownanie_long, aes(x = Model, y = Wartosc, fill = Model)) +
   theme_minimal() +
   theme(legend.position = "none")
 ```
+
+</div>
 
 Na wykresie wyraźnie widać przewagę modelu ARIMA w obu metrykach, co potwierdza jego skuteczność w modelowaniu przychodów Walmart.
 
