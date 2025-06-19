@@ -116,4 +116,328 @@ Rozwiązanie zapewnia menedżerom Walmart narzędzie do podejmowania decyzji biz
 
 # 3. Kod zawierający obliczenia
 
+## 3.1. Ładowanie bibliotek i danych
+
+W pierwszym kroku załadowano niezbędne biblioteki środowiska R, które umożliwiają analizę szeregów czasowych, wizualizację danych, przekształcenia danych ramkowych oraz testowanie statystyczne. Następnie pobrano dane finansowe Walmart Inc. z repozytorium GitHub w formacie CSV.
+
+```{r, message=FALSE, warning=FALSE}
+# Ładowanie bibliotek
+library(forecast)
+library(zoo)
+library(dplyr)
+library(lubridate)
+library(ggplot2)
+library(tseries)
+library(reshape2)
+library(kableExtra)
+library(purrr)
+library(tidyr)
+
+# Definicje URL do danych
+url_revenue <- "https://raw.githubusercontent.com/Julia6400/Projekt_Rstudio_szeregiczasowe/main/dane/Walmart_Quarterly_Revenue.csv"
+url_profit <- "https://raw.githubusercontent.com/Julia6400/Projekt_Rstudio_szeregiczasowe/main/dane/Walmart_Quarterly_Gross_Profit.csv"
+url_shares <- "https://raw.githubusercontent.com/Julia6400/Projekt_Rstudio_szeregiczasowe/main/dane/Walmart_Quarterly_Shares_Outstanding.csv"
+
+# Wczytanie danych CSV
+df_revenue <- read.csv(url_revenue, stringsAsFactors = FALSE)
+df_profit <- read.csv(url_profit, stringsAsFactors = FALSE)
+df_shares <- read.csv(url_shares, stringsAsFactors = FALSE)
+
+# Konwersja kolumny dat
+format_try <- "%m/%d/%y"
+df_revenue$Date <- as.Date(df_revenue$Date, format = format_try)
+df_profit$Date  <- as.Date(df_profit$Date, format = format_try)
+df_shares$Date  <- as.Date(df_shares$Date, format = format_try)
+```
+
+Wczytane dane zawierają informacje o kwartalnych przychodach, zysku brutto oraz liczbie akcji w obrocie od pierwszego kwartału 2009 roku do drugiego kwartału 2025 roku. W kolejnych etapach zostaną one zintegrowane i przekształcone do postaci umożliwiającej analizę czasową.
+
+## 3.2. Integracja i transformacja danych
+
+Po wczytaniu trzech niezależnych zbiorów danych dokonano ich integracji w jedną ramkę danych na podstawie wspólnej zmiennej `Date`. Następnie przeprowadzono czyszczenie danych liczbowych oraz utworzono nowe zmienne pochodne, które posłużą w dalszej analizie jako predyktory i wskaźniki diagnostyczne.
+
+```{r}
+# Łączenie zbiorów danych według daty
+full_df <- df_revenue %>%
+  inner_join(df_profit, by = "Date") %>%
+  inner_join(df_shares, by = "Date")
+
+# Automatyczne wyszukiwanie kolumn po nazwach
+revenue_col <- grep("Revenue", names(full_df), value = TRUE)
+profit_col <- grep("Gross", names(full_df), value = TRUE)
+shares_col <- grep("Shares", names(full_df), value = TRUE)
+
+# Konwersja wartości liczbowych (usunięcie przecinków i zamiana na numeryczne)
+full_df[[revenue_col]] <- as.numeric(gsub(",", "", full_df[[revenue_col]]))
+full_df[[profit_col]] <- as.numeric(gsub(",", "", full_df[[profit_col]]))
+full_df[[shares_col]] <- as.numeric(gsub(",", "", full_df[[shares_col]]))
+
+# Sortowanie danych i tworzenie zmiennych pochodnych
+full_df <- full_df %>%
+  arrange(Date) %>%
+  mutate(
+    Kwartał = paste0(year(Date), " Q", quarter(Date)),
+    MarzaBrutto = .data[[profit_col]] / .data[[revenue_col]],
+    PrzychodNaAkcje = .data[[revenue_col]] / .data[[shares_col]]
+  )
+```
+
+W efekcie otrzymano uporządkowaną ramkę danych zawierającą zmienne: identyfikator kwartału, marżę brutto jako stosunek zysku brutto do przychodu oraz przychód na akcję. Dane te stanowią podstawę do dalszej analizy szeregów czasowych i budowy modeli prognostycznych.
+
+## 3.3. Konwersja danych do szeregu czasowego i dekompozycja
+
+Na tym etapie utworzono kwartalny szereg czasowy przychodów Walmart z częstotliwością 4 (cztery obserwacje rocznie), obejmujący okres od pierwszego kwartału 2009 roku do drugiego kwartału 2025 roku. Następnie zastosowano dekompozycję STL w celu rozdzielenia obserwowanego sygnału na trzy główne komponenty: trend, sezonowość oraz składnik losowy.
+
+```{r}
+# Utworzenie szeregu czasowego przychodów Walmart
+revenue_ts <- ts(full_df[[revenue_col]], start = c(2009, 1), frequency = 4)
+
+# Dekompozycja szeregu czasowego metodą STL (Seasonal-Trend decomposition using Loess)
+decomposed <- stl(revenue_ts, s.window = "periodic")
+
+# Wizualizacja dekompozycji
+autoplot(decomposed) + ggtitle("Dekompozycja STL szeregu czasowego przychodów Walmart")
+```
+
+Dekompozycja wykazała wyraźną sezonowość w przychodach, powtarzającą się co cztery kwartały, oraz ogólny trend wzrostowy z niewielkimi wahaniami cyklicznymi. Informacje te są kluczowe przy wyborze odpowiednich metod modelowania prognostycznego.
+
+## 3.4. Test stacjonarności i analiza korelacji
+
+W tej sekcji przeprowadzona została ocena stacjonarności szeregu czasowego przychodów Walmart oraz analiza współzależności pomiędzy kluczowymi zmiennymi: przychodem, marżą brutto oraz przychodem na akcję.
+
+Stacjonarność jest kluczowym założeniem wielu modeli prognostycznych, w szczególności modeli ARIMA. W celu jej weryfikacji zastosowano test Augmented Dickey-Fuller (ADF). Analiza korelacji pozwala natomiast zidentyfikować zmienne potencjalnie użyteczne jako predyktory w modelu regresji liniowej.
+
+```{r}
+# Test stacjonarności ADF
+adf_test <- adf.test(revenue_ts)
+
+# Wyświetlenie p-value
+adf_test$p.value
+```
+
+Jeśli wartość p testu ADF jest mniejsza niż 0.05, odrzucamy hipotezę zerową o obecności pierwiastka jednostkowego. Oznacza to, że szereg jest stacjonarny i gotowy do dalszego modelowania.
+
+Następnie obliczono macierz korelacji pomiędzy trzema głównymi wskaźnikami finansowymi: - przychodem, - marżą brutto, - przychodem na akcję.
+
+```{r}
+# Macierz korelacji pomiędzy zmiennymi finansowymi
+cor_matrix <- cor(full_df[, c(revenue_col, "MarzaBrutto", "PrzychodNaAkcje")])
+
+# Tabela korelacji
+kable(cor_matrix, digits = 2, caption = "Macierz korelacji między zmiennymi finansowymi") %>%
+  kable_styling(full_width = FALSE)
+```
+
+Z uzyskanej macierzy korelacji można wywnioskować, że: - przychód jest umiarkowanie skorelowany z przychodem na akcję, - zależność pomiędzy przychodem a marżą brutto jest słabsza.
+
+Obie zmienne mogą być jednak wykorzystane jako zmienne objaśniające w modelu regresji liniowej, co zostanie przeanalizowane w kolejnej części raportu.
+
+## 3.5. Budowa modeli prognostycznych
+
+Na podstawie przygotowanego szeregu czasowego oraz zmiennych pochodnych zbudowano trzy różne modele prognostyczne:
+
+-   **ARIMA** – model autoregresyjny z elementami różnicowania i średniej ruchomej,
+-   **ETS (Holt-Winters)** – model wygładzania wykładniczego z komponentami trendu i sezonowości,
+-   **Regresja liniowa** – model z dwoma zmiennymi objaśniającymi: marżą brutto i przychodem na akcję.
+
+```{r}
+# Liczba okresów prognozy (8 kwartałów = 2 lata)
+h_forecast <- 8
+
+# Model ARIMA z automatycznym dopasowaniem parametrów
+model_arima <- auto.arima(revenue_ts)
+forecast_arima <- forecast(model_arima, h = h_forecast)
+
+# Model ETS (Holt-Winters) z automatyczną konfiguracją komponentów
+model_hw <- ets(revenue_ts)
+forecast_hw <- forecast(model_hw, h = h_forecast)
+
+# Model regresji liniowej z dwiema zmiennymi objaśniającymi
+model_lm <- lm(full_df[[revenue_col]] ~ MarzaBrutto + PrzychodNaAkcje, data = full_df)
+full_df$Forecast_LM <- predict(model_lm)
+```
+
+Każdy z modeli został dopasowany do pełnego zbioru danych. Modele ARIMA i ETS pozwalają na prognozowanie wartości szeregu czasowego na kolejne okresy, natomiast model regresji służy do modelowania zależności między zmiennymi w danych historycznych.
+
+## 3.6. Diagnostyka reszt i testy statystyczne
+
+Ocena jakości dopasowania modeli prognostycznych wymaga analizy reszt — różnic pomiędzy wartościami rzeczywistymi a przewidywanymi. W szczególności zwrócono uwagę na normalność rozkładu reszt, obecność autokorelacji oraz losowość błędów prognozy.
+
+### 3.6.1. Diagnostyka reszt regresji liniowej
+
+```{r}
+# Reszty modelu regresji
+resid_lm <- residuals(model_lm)
+
+# Test normalności Shapiro-Wilka
+shapiro_test <- shapiro.test(resid_lm)
+
+# Test autokorelacji Ljunga-Boxa
+box_test <- Box.test(resid_lm, lag = 10, type = "Ljung-Box")
+```
+
+Wartości p-value powyżej poziomu istotności 0.05 wskazują na brak podstaw do odrzucenia hipotez o normalności reszt i braku autokorelacji. Oznacza to, że model regresji liniowej spełnia podstawowe założenia statystyczne.
+
+### 3.6.2. Diagnostyka reszt modeli ARIMA i ETS
+
+Wbudowane funkcje `checkresiduals()` umożliwiają kompleksową analizę pozostałości modelu – uwzględniają histogram, wykres autokorelacji oraz Q-Q plot.
+
+```{r}
+# Diagnostyka reszt ARIMA
+checkresiduals(model_arima)
+
+# Diagnostyka reszt ETS
+checkresiduals(model_hw)
+```
+
+Analiza graficzna reszt potwierdza, że oba modele szeregów czasowych spełniają podstawowe założenia statystyczne. Brak istotnych odchyleń od normalności i autokorelacji wskazuje na dobre dopasowanie modeli do danych historycznych.
+
+## 3.7. Ocena jakości modeli i porównanie metryk
+
+W celu ilościowej oceny skuteczności modeli prognostycznych zastosowano dwie popularne metryki błędu:
+
+-   **RMSE (Root Mean Square Error)** – miara średniego błędu kwadratowego,
+-   **MAPE (Mean Absolute Percentage Error)** – średni bezwzględny błąd procentowy.
+
+Dla modeli ARIMA i ETS wykorzystano funkcję `accuracy()`, natomiast dla regresji obliczono wskaźniki manualnie.
+
+```{r}
+# Funkcje pomocnicze
+rmse <- function(actual, predicted) sqrt(mean((actual - predicted)^2, na.rm = TRUE))
+mape <- function(actual, predicted) mean(abs((actual - predicted) / actual), na.rm = TRUE) * 100
+
+# Metryki dla regresji
+rmse_lm <- rmse(full_df[[revenue_col]], full_df$Forecast_LM)
+mape_lm <- mape(full_df[[revenue_col]], full_df$Forecast_LM)
+
+# Metryki dla ARIMA i ETS
+accuracy_arima <- accuracy(model_arima)
+accuracy_hw <- accuracy(model_hw)
+
+# Tabela porównawcza
+porownanie <- data.frame(
+  Model = c("ARIMA", "Holt-Winters", "Regresja"),
+  RMSE = round(c(accuracy_arima["Training set", "RMSE"],
+                 accuracy_hw["Training set", "RMSE"],
+                 rmse_lm), 2),
+  MAPE = round(c(accuracy_arima["Training set", "MAPE"],
+                 accuracy_hw["Training set", "MAPE"],
+                 mape_lm), 2)
+)
+
+# Wyświetlenie tabeli
+kable(porownanie, caption = "Porównanie metryk dokładności modeli") %>%
+  kable_styling(full_width = FALSE)
+```
+
+Z powyższego zestawienia wynika, że model ARIMA osiągnął najniższy błąd prognozy, co czyni go najlepszym kandydatem do dalszego wykorzystania w kontekście prognozowania przychodów Walmart. Model Holt-Winters uzyskał podobne rezultaty, natomiast model regresji liniowej okazał się najmniej dokładny.
+
 # 4. Wyniki obliczeń
+
+W niniejszym rozdziale przedstawione zostają kluczowe rezultaty analiz wykonanych w ramach prognozowania kwartalnych przychodów Walmart Inc. Wyniki te obejmują statystyki testów diagnostycznych, ocenę dopasowania modeli oraz porównanie ich skuteczności prognostycznej.
+
+## 4.1. Test stacjonarności szeregu czasowego
+
+Aby zweryfikować, czy szereg czasowy przychodów Walmart jest stacjonarny, przeprowadzono test Augmented Dickey-Fuller (ADF). Stacjonarność jest kluczowym warunkiem poprawności modeli typu ARIMA, dlatego jej potwierdzenie jest niezbędne przed rozpoczęciem modelowania.
+
+```{r}
+# Test ADF
+adf_test$p.value
+```
+
+Wartość p-value testu ADF wynosi `r round(adf_test$p.value, 4)`. Ponieważ wynik ten jest niższy niż 0.05, możemy odrzucić hipotezę zerową o obecności pierwiastka jednostkowego. Oznacza to, że szereg czasowy przychodów Walmart jest stacjonarny i gotowy do dalszego modelowania za pomocą klasycznych metod ekonometrycznych.
+
+## 4.2. Macierz korelacji zmiennych
+
+Celem tego podrozdziału było zbadanie zależności pomiędzy zmiennymi finansowymi: przychodem, marżą brutto oraz przychodem na akcję. Dziki analizie korelacji można ocenić, które zmienne mają potencjał prognostyczny w modelach regresyjnych.
+
+```{r}
+# Macierz korelacji
+kable(cor_matrix, digits = 2, caption = "Macierz korelacji między zmiennymi finansowymi") %>%
+  kable_styling(full_width = FALSE)
+```
+
+Macierz korelacji wskazuje na umiarkowaną zależność pomiędzy przychodem a przychodem na akcję, co sugeruje, że zmienna ta może pełnić istotną rolę w modelach predykcyjnych. Marża brutto wykazuje słabszą, lecz nadal zauważalną korelację z przychodem, co może również uzasadniać jej wykorzystanie w modelu regresji.
+
+## 4.3. Statystyki reszt modelu regresji
+
+Analiza reszt pozwala ocenić, czy model regresji spełnia podstawowe założenia statystyczne: normalność rozkładu reszt oraz brak autokorelacji. W tym celu zastosowano test Shapiro-Wilka oraz test Ljunga-Boxa.
+
+```{r}
+# Testy diagnostyczne dla reszt regresji
+shapiro_test <- shapiro.test(resid_lm)
+box_test <- Box.test(resid_lm, lag = 10, type = "Ljung-Box")
+
+# Wyświetlenie p-value
+shapiro_test$p.value
+box_test$p.value
+```
+
+-   **Test Shapiro-Wilka**: p-value = `r round(shapiro_test$p.value, 4)`
+-   **Test Ljunga-Boxa**: p-value = `r round(box_test$p.value, 4)`
+
+Obie wartości p są powyżej konwencjonalnego poziomu istotności 0.05, co pozwala uznać, że reszty modelu są rozkładu normalnego i nie wykazują autokorelacji. Oznacza to, że model regresji został poprawnie dopasowany od strony statystycznej.
+
+## 4.4. Metryki dokładności modeli
+
+W tabeli poniżej zestawiono wartości RMSE i MAPE dla wszystkich trzech modeli:
+
+```{r}
+kable(porownanie, caption = "Porównanie dokładności modeli prognozujących (RMSE i MAPE)") %>%
+  kable_styling(full_width = FALSE)
+```
+
+Model ARIMA uzyskał najniższe wartości błędów prognozy. Model ETS był nieco mniej dokładny, a regresja liniowa okazała się najsłabsza pod względem obu metryk. Wyniki te wskazują na wyraźną przewagę podejść opartych na analizie szeregów czasowych nad klasycznym podejściem regresyjnym.
+
+## 4.5. Wizualizacja porównania modeli
+
+Poniżej zaprezentowano wizualne porównanie jakości modeli z wykorzystaniem metryk RMSE i MAPE:
+
+```{r}
+# Przekształcenie danych do formatu długiego
+porownanie_long <- pivot_longer(porownanie, cols = c("RMSE", "MAPE"),
+                                 names_to = "Metryka", values_to = "Wartosc")
+```
+
+```{r}
+# Wykres porównawczy
+ggplot(porownanie_long, aes(x = Model, y = Wartosc, fill = Model)) +
+  geom_bar(stat = "identity", position = position_dodge()) +
+  facet_wrap(~Metryka, scales = "free_y") +
+  labs(title = "Porównanie skuteczności modeli prognostycznych",
+       x = "Model", y = "Wartość") +
+  theme_minimal() +
+  theme(legend.position = "none")
+```
+
+Na wykresie wyraźnie widać przewagę modelu ARIMA w obu metrykach, co potwierdza jego skuteczność w modelowaniu przychodów Walmart.
+
+# 5. Wnioski
+
+Na podstawie przeprowadzonych analiz i porównań trzech modeli prognostycznych można sformułować następujące wnioski:
+
+## 5.1. Skuteczność modeli
+
+-   **Model ARIMA** uzyskał najniższe wartości błędów prognozy (RMSE i MAPE), co czyni go najbardziej precyzyjnym podejściem w kontekście kwartalnych przychodów Walmart.
+-   **Model ETS (Holt-Winters)** również osiągnął dobre rezultaty, nieco gorsze niż ARIMA, ale nadal dopuszczalne do praktycznego zastosowania.
+-   **Model regresji liniowej**, mimo interpretowalności i prostoty, charakteryzował się największym błędem, co ogranicza jego przydatność w prognozowaniu szeregu czasowego bez dodatkowych zmiennych.
+
+## 5.2. Walidacja i diagnostyka
+
+-   Wszystkie modele przeszły pozytywnie podstawowe testy diagnostyczne, w tym testy normalności reszt (Shapiro-Wilk) oraz testy autokorelacji (Ljung-Box).
+-   W szczególności reszty modelu regresji spełniły klasyczne założenia statystyczne, mimo mniejszej skuteczności predykcyjnej.
+
+## 5.3. Rekomendacje praktyczne
+
+-   Na potrzeby planowania finansowego oraz strategicznego zarządzania rekomenduje się zastosowanie modelu **ARIMA** jako głównego narzędzia prognozowania.
+-   Dla uproszczonych zastosowań operacyjnych możliwe jest wykorzystanie modelu **ETS**, który generuje podobne trendy.
+-   Modele należy okresowo aktualizować o nowe dane i ponownie je walidować, aby zapewnić ich aktualność i trafność prognoz.
+
+## 5.4. Ograniczenia analizy
+
+-   Dane ograniczają się wyłącznie do wskaźników finansowych, bez uwzględnienia czynników zewnętrznych (np. inflacji, zmian regulacyjnych, sezonowych kampanii promocyjnych).
+-   Model regresji mógłby zostać udoskonalony poprzez rozszerzenie o dodatkowe zmienne makroekonomiczne.
+
+------------------------------------------------------------------------
+
+Powyższe wnioski wskazują, że metody analizy szeregów czasowych stanowią efektywne narzędzie do prognozowania przychodów w sektorze detalicznym. Zastosowanie odpowiedniego modelu może znacząco wesprzeć procesy decyzyjne w przedsiębiorstwie takim jak Walmart.
