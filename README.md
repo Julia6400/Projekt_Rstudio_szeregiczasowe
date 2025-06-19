@@ -31,6 +31,3 @@ Projekt poświęcony jest analizie i prognozowaniu kwartalnych przychodów sieci
 2.  **Model Holt-Winters (ETS)** - wygładzanie wykładnicze
 3.  **Regresja liniowa** - z marżą brutto i przychodem na akcję
 
-## Wyniki
-
-TRZEBA DOPISAĆ
